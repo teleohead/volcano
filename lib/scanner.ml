@@ -142,7 +142,7 @@ let scan_string src s =
     let next = peek src curr in
     if is_unterminated next then begin
       Errors.report
-        (Compile_error.make "unterminated string"
+        (Compile_error.make ~token:acc "unterminated string"
            (Source_position.make s.ln s.ln s.col s.col));
       (acc, curr)
     end
