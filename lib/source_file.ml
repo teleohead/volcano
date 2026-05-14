@@ -1,9 +1,6 @@
 let eof = '\x00'
 
-type t = {
-  chars: char array;
-  filename: string;
-}
+type t = { chars : char array; filename : string }
 
 let load filename =
   try
@@ -17,6 +14,5 @@ let load filename =
     exit 1
 
 let get src offset =
-  if offset >= 0 && offset < Array.length src.chars
-  then src.chars.(offset)
+  if offset >= 0 && offset < Array.length src.chars then src.chars.(offset)
   else eof
