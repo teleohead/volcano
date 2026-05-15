@@ -9,7 +9,7 @@ let current_kind = function token :: _ -> token.kind | [] -> EOF
 
 let current_token = function
   | token :: _ -> token
-  | [] -> make EOF "$" Source_position.dummy
+  | [] -> Token.make EOF "$" Source_position.dummy
 
 let advance = function _ :: tail -> tail | [] -> []
 
@@ -26,40 +26,39 @@ let expect kind tokens =
 
 let parse_type tokens =
   match current_kind tokens with
-  | Int -> (IntType, advance tokens)
-  | Float -> (FloatType, advance tokens)
-  | Boolean -> (BoolType, advance tokens)
-  | Void -> (VoidType, advance tokens)
+  | Int -> (IntType, expect Int tokens)
+  | Float -> (FloatType, expect Float tokens)
+  | Boolean -> (BoolType, expect Boolean tokens)
+  | Void -> (VoidType, expect Void tokens)
   | _ -> parse_error "type expected here" tokens
 
 let parse_ident tokens =
   match tokens with
-  | token :: tail when token.kind = Id -> (Ident token.spelling, tail)
+  | id :: tail when id.kind = Id -> (Ident id.spelling, tail)
   | _ -> parse_error "identifier expected here" tokens
 
 let parse_operator tokens =
-  let tok = current_token tokens in
-  (Operator tok.spelling, advance tokens)
+  let op = current_token tokens in
+  (Operator op.spelling, advance tokens)
 
 let parse_int_lit tokens =
   match tokens with
-  | token :: tail when token.kind = IntLit -> (IntExpr token.spelling, tail)
+  | lit :: tail when lit.kind = IntLit -> (IntExpr lit.spelling, tail)
   | _ -> parse_error "integer literal expected here" tokens
 
 let parse_float_lit tokens =
   match tokens with
-  | token :: tail when token.kind = FloatLit -> (FloatExpr token.spelling, tail)
+  | lit :: tail when lit.kind = FloatLit -> (FloatExpr lit.spelling, tail)
   | _ -> parse_error "float literal expected here" tokens
 
 let parse_bool_lit tokens =
   match tokens with
-  | token :: tail when token.kind = BoolLit -> (BoolExpr token.spelling, tail)
+  | lit :: tail when lit.kind = BoolLit -> (BoolExpr lit.spelling, tail)
   | _ -> parse_error "boolean literal expected here" tokens
 
 let parse_string_lit tokens =
   match tokens with
-  | token :: tail when token.kind = StringLit ->
-      (StringExpr token.spelling, tail)
+  | lit :: tail when lit.kind = StringLit -> (StringExpr lit.spelling, tail)
   | _ -> parse_error "string literal expected here" tokens
 
 (* Expressions *)
@@ -208,8 +207,8 @@ and parse_proper_arg_list tokens =
   match current_kind tokens with
   | Comma ->
       let tokens = expect Comma tokens in
-      let proper_list, tokens = parse_proper_arg_list tokens in
-      (arg :: proper_list, tokens)
+      let list, tokens = parse_proper_arg_list tokens in
+      (arg :: list, tokens)
   | _ -> (arg :: [], tokens)
 
 (* Parameters *)
@@ -234,8 +233,8 @@ let rec parse_proper_para_list tokens =
   match current_kind tokens with
   | Comma ->
       let tokens = expect Comma tokens in
-      let proper_list, tokens = parse_proper_para_list tokens in
-      (para :: proper_list, tokens)
+      let list, tokens = parse_proper_para_list tokens in
+      (para :: list, tokens)
   | _ -> (para :: [], tokens)
 
 let parse_para_list tokens =
