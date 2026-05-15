@@ -24,7 +24,7 @@ and expr =
   | AssignExpr of expr * expr
   | BinaryExpr of expr * operator * expr
   | UnaryExpr of operator * expr
-  | CallExpr of ident * expr list
+  | CallExpr of ident * arg list
   | IntExpr of string
   | BoolExpr of string
   | FloatExpr of string
@@ -32,6 +32,8 @@ and expr =
   | ArrayExpr of var * expr
   | ArrayInitExpr of expr list
   | EmptyExpr
+
+and arg = Arg of expr
 
 and type_ =
   | IntType

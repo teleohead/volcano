@@ -11,7 +11,7 @@ let current_token = function
   | token :: _ -> token
   | [] -> make EOF "$" Source_position.dummy
 
-let advance = function _ :: rest -> rest | [] -> []
+let advance = function _ :: tail -> tail | [] -> []
 
 let parse_error msg tokens =
   Errors.report (Compile_error.make msg (current_token tokens).position);
@@ -34,7 +34,7 @@ let parse_type tokens =
 
 let parse_ident tokens =
   match tokens with
-  | token :: rest when token.kind = Id -> (Ident token.spelling, rest)
+  | token :: tail when token.kind = Id -> (Ident token.spelling, tail)
   | _ -> parse_error "identifier expected here" tokens
 
 let parse_operator tokens =
@@ -43,23 +43,23 @@ let parse_operator tokens =
 
 let parse_int_lit tokens =
   match tokens with
-  | token :: rest when token.kind = IntLit -> (IntExpr token.spelling, rest)
+  | token :: tail when token.kind = IntLit -> (IntExpr token.spelling, tail)
   | _ -> parse_error "integer literal expected here" tokens
 
 let parse_float_lit tokens =
   match tokens with
-  | token :: rest when token.kind = FloatLit -> (FloatExpr token.spelling, rest)
+  | token :: tail when token.kind = FloatLit -> (FloatExpr token.spelling, tail)
   | _ -> parse_error "float literal expected here" tokens
 
 let parse_bool_lit tokens =
   match tokens with
-  | token :: rest when token.kind = BoolLit -> (BoolExpr token.spelling, rest)
+  | token :: tail when token.kind = BoolLit -> (BoolExpr token.spelling, tail)
   | _ -> parse_error "boolean literal expected here" tokens
 
 let parse_string_lit tokens =
   match tokens with
-  | token :: rest when token.kind = StringLit ->
-      (StringExpr token.spelling, rest)
+  | token :: tail when token.kind = StringLit ->
+      (StringExpr token.spelling, tail)
   | _ -> parse_error "string literal expected here" tokens
 
 (* Expressions *)
@@ -67,120 +67,120 @@ let parse_string_lit tokens =
 let rec parse_expr tokens = parse_assignment_expr tokens
 
 and parse_assignment_expr tokens =
-  let lhs, rest = parse_cond_or_expr tokens in
-  match current_kind rest with
+  let lhs, tokens = parse_cond_or_expr tokens in
+  match current_kind tokens with
   | Eq ->
-      let rest = expect Eq rest in
-      let rhs, rest = parse_assignment_expr rest in
-      (AssignExpr (lhs, rhs), rest)
-  | _ -> (lhs, rest)
+      let tokens = expect Eq tokens in
+      let rhs, tokens = parse_assignment_expr tokens in
+      (AssignExpr (lhs, rhs), tokens)
+  | _ -> (lhs, tokens)
 
 and parse_cond_or_expr tokens =
-  let init, rest = parse_cond_and_expr tokens in
+  let init, tokens = parse_cond_and_expr tokens in
   let rec loop acc tokens =
     match current_kind tokens with
     | OrOr ->
-        let op, rest = parse_operator tokens in
-        let rhs, rest = parse_cond_and_expr rest in
+        let op, tokens = parse_operator tokens in
+        let rhs, tokens = parse_cond_and_expr tokens in
         let acc = BinaryExpr (acc, op, rhs) in
-        loop acc rest
+        loop acc tokens
     | _ -> (acc, tokens)
   in
-  loop init rest
+  loop init tokens
 
 and parse_cond_and_expr tokens =
-  let init, rest = parse_equality_expr tokens in
+  let init, tokens = parse_equality_expr tokens in
   let rec loop acc tokens =
     match current_kind tokens with
     | AndAnd ->
-        let op, rest = parse_operator tokens in
-        let rhs, rest = parse_equality_expr rest in
+        let op, tokens = parse_operator tokens in
+        let rhs, tokens = parse_equality_expr tokens in
         let acc = BinaryExpr (acc, op, rhs) in
-        loop acc rest
+        loop acc tokens
     | _ -> (acc, tokens)
   in
-  loop init rest
+  loop init tokens
 
 and parse_equality_expr tokens =
-  let init, rest = parse_rel_expr tokens in
+  let init, tokens = parse_rel_expr tokens in
   let rec loop acc tokens =
     match current_kind tokens with
     | EqEq | NotEq ->
-        let op, rest = parse_operator tokens in
-        let rhs, rest = parse_rel_expr rest in
+        let op, tokens = parse_operator tokens in
+        let rhs, tokens = parse_rel_expr tokens in
         let acc = BinaryExpr (acc, op, rhs) in
-        loop acc rest
+        loop acc tokens
     | _ -> (acc, tokens)
   in
-  loop init rest
+  loop init tokens
 
 and parse_rel_expr tokens =
-  let init, rest = parse_additive_expr tokens in
+  let init, tokens = parse_additive_expr tokens in
   let rec loop acc tokens =
     match current_kind tokens with
     | Lt | Gt | LtEq | GtEq ->
-        let op, rest = parse_operator tokens in
-        let rhs, rest = parse_additive_expr rest in
+        let op, tokens = parse_operator tokens in
+        let rhs, tokens = parse_additive_expr tokens in
         let acc = BinaryExpr (acc, op, rhs) in
-        loop acc rest
+        loop acc tokens
     | _ -> (acc, tokens)
   in
-  loop init rest
+  loop init tokens
 
 and parse_additive_expr tokens =
-  let init, rest = parse_multiplicative_expr tokens in
+  let init, tokens = parse_multiplicative_expr tokens in
   let rec loop acc tokens =
     match current_kind tokens with
     | Lt | Gt | LtEq | GtEq ->
-        let op, rest = parse_operator tokens in
-        let rhs, rest = parse_multiplicative_expr rest in
+        let op, tokens = parse_operator tokens in
+        let rhs, tokens = parse_multiplicative_expr tokens in
         let acc = BinaryExpr (acc, op, rhs) in
-        loop acc rest
+        loop acc tokens
     | _ -> (acc, tokens)
   in
-  loop init rest
+  loop init tokens
 
 and parse_multiplicative_expr tokens =
-  let init, rest = parse_unary_expr tokens in
+  let init, tokens = parse_unary_expr tokens in
   let rec loop acc tokens =
     match current_kind tokens with
     | Lt | Gt | LtEq | GtEq ->
-        let op, rest = parse_operator tokens in
-        let rhs, rest = parse_unary_expr rest in
+        let op, tokens = parse_operator tokens in
+        let rhs, tokens = parse_unary_expr tokens in
         let acc = BinaryExpr (acc, op, rhs) in
-        loop acc rest
+        loop acc tokens
     | _ -> (acc, tokens)
   in
-  loop init rest
+  loop init tokens
 
 and parse_unary_expr tokens =
   match current_kind tokens with
   | Plus | Minus | Not ->
-      let op, rest = parse_operator tokens in
-      let operand, rest = parse_unary_expr rest in
-      (UnaryExpr (op, operand), rest)
+      let op, tokens = parse_operator tokens in
+      let operand, tokens = parse_unary_expr tokens in
+      (UnaryExpr (op, operand), tokens)
   | _ -> parse_primary_expr tokens
 
 and parse_primary_expr tokens =
   match current_kind tokens with
   | Id -> (
-      let id, rest = parse_ident tokens in
-      match current_kind rest with
+      let id, tokens = parse_ident tokens in
+      match current_kind tokens with
       | LParen ->
-          let rest = expect LParen rest in
-          let args, rest = parse_arg_list rest in
-          (CallExpr (id, args), rest)
+          let tokens = expect LParen tokens in
+          let args, tokens = parse_arg_list tokens in
+          (CallExpr (id, args), tokens)
       | LBracket ->
-          let rest = expect LBracket rest in
-          let index, rest = parse_expr rest in
-          let rest = expect RBracket rest in
-          (ArrayExpr (SimpleVar id, index), rest)
-      | _ -> (VarExpr (SimpleVar id), rest))
+          let tokens = expect LBracket tokens in
+          let index, tokens = parse_expr tokens in
+          let tokens = expect RBracket tokens in
+          (ArrayExpr (SimpleVar id, index), tokens)
+      | _ -> (VarExpr (SimpleVar id), tokens))
   | LParen ->
-      let rest = expect LParen tokens in
-      let expr, rest = parse_expr rest in
-      let rest = expect RParen tokens in
-      (expr, rest)
+      let tokens = expect LParen tokens in
+      let expr, tokens = parse_expr tokens in
+      let tokens = expect RParen tokens in
+      (expr, tokens)
   | IntLit -> parse_int_lit tokens
   | FloatLit -> parse_float_lit tokens
   | BoolLit -> parse_bool_lit tokens
@@ -190,4 +190,59 @@ and parse_primary_expr tokens =
 
 (* Arguments *)
 
-let parse_arg_list tokens = ()
+and parse_arg tokens =
+  let expr, tokens = parse_expr tokens in
+  (Arg expr, tokens)
+
+let rec parse_proper_arg_list tokens =
+  let arg, tokens = parse_arg tokens in
+  match current_kind tokens with
+  | Comma ->
+      let tokens = expect Comma tokens in
+      let proper_list, tokens = parse_proper_arg_list tokens in
+      (arg :: proper_list, tokens)
+  | _ -> (arg :: [], tokens)
+
+let parse_arg_list tokens =
+  let tokens = expect LParen tokens in
+  match current_kind tokens with
+  | RParen -> ([], expect RParen tokens)
+  | _ ->
+      let proper_list, tokens = parse_proper_arg_list tokens in
+      let tokens = expect RParen tokens in
+      (proper_list, tokens)
+
+(* Parameters *)
+
+let parse_para_decl tokens =
+  let type_, tokens = parse_type tokens in
+  let id, tokens = parse_ident tokens in
+  match current_kind tokens with
+  | LBracket ->
+      let tokens = expect LBracket tokens in
+      let index, tokens =
+        match current_kind tokens with
+        | IntLit -> parse_int_lit tokens
+        | _ -> (EmptyExpr, tokens)
+      in
+      let tokens = expect RBracket tokens in
+      (ParaDecl (ArrayType (type_, index), id), tokens)
+  | _ -> (ParaDecl (type_, id), tokens)
+
+let rec parse_proper_para_list tokens =
+  let para, tokens = parse_para_decl tokens in
+  match current_kind tokens with
+  | Comma ->
+      let tokens = expect Comma tokens in
+      let proper_list, tokens = parse_proper_para_list tokens in
+      (para :: proper_list, tokens)
+  | _ -> (para :: [], tokens)
+
+let parse_para_list tokens =
+  let tokens = expect LParen tokens in
+  match current_kind tokens with
+  | RParen -> ([], expect RParen tokens)
+  | _ ->
+      let proper_list, tokens = parse_proper_para_list tokens in
+      let tokens = expect RParen tokens in
+      (proper_list, tokens)
