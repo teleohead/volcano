@@ -194,16 +194,7 @@ and parse_arg tokens =
   let expr, tokens = parse_expr tokens in
   (Arg expr, tokens)
 
-let rec parse_proper_arg_list tokens =
-  let arg, tokens = parse_arg tokens in
-  match current_kind tokens with
-  | Comma ->
-      let tokens = expect Comma tokens in
-      let proper_list, tokens = parse_proper_arg_list tokens in
-      (arg :: proper_list, tokens)
-  | _ -> (arg :: [], tokens)
-
-let parse_arg_list tokens =
+and parse_arg_list tokens =
   let tokens = expect LParen tokens in
   match current_kind tokens with
   | RParen -> ([], expect RParen tokens)
@@ -211,6 +202,15 @@ let parse_arg_list tokens =
       let proper_list, tokens = parse_proper_arg_list tokens in
       let tokens = expect RParen tokens in
       (proper_list, tokens)
+
+and parse_proper_arg_list tokens =
+  let arg, tokens = parse_arg tokens in
+  match current_kind tokens with
+  | Comma ->
+      let tokens = expect Comma tokens in
+      let proper_list, tokens = parse_proper_arg_list tokens in
+      (arg :: proper_list, tokens)
+  | _ -> (arg :: [], tokens)
 
 (* Parameters *)
 
