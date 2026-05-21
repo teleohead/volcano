@@ -22,7 +22,7 @@ let expect kind tokens =
   | k when k = kind -> advance tokens
   | _ -> parse_error ("\"" ^ string_of_kind kind ^ "\" expected here") tokens
 
-(* Base Cases *)
+(* Primitives *)
 
 let parse_type tokens =
   match current_kind tokens with
@@ -245,3 +245,278 @@ let parse_para_list tokens =
       let proper_list, tokens = parse_proper_para_list tokens in
       let tokens = expect RParen tokens in
       (proper_list, tokens)
+
+(* Statements *)
+
+let rec parse_stmt tokens =
+  match current_kind tokens with
+  | LCurly -> parse_compound_stmt tokens
+  | If -> parse_if_stmt tokens
+  | For -> parse_for_stmt tokens
+  | While -> parse_while_stmt tokens
+  | Return -> parse_return_stmt tokens
+  | Break -> parse_break_stmt tokens
+  | Continue -> parse_continue_stmt tokens
+  | _ -> parse_expr_stmt tokens
+
+and parse_stmt_list tokens =
+  match current_kind tokens with
+  | RCurly -> ([], tokens)
+  | _ ->
+      let stmt, tokens = parse_stmt tokens in
+      let tail, tokens = parse_stmt_list tokens in
+      (stmt :: tail, tokens)
+
+and parse_compound_stmt tokens =
+  let tokens = expect LCurly tokens in
+  let decls, tokens = parse_local_decl_list tokens in
+  let stmts, tokens = parse_stmt_list tokens in
+  let tokens = expect RCurly tokens in
+  match (decls, stmts) with
+  | [], [] -> (EmptyCompStmt, tokens)
+  | _ -> (CompoundStmt (decls, stmts), tokens)
+
+and parse_if_stmt tokens =
+  let tokens = expect If tokens in
+  let tokens = expect LParen tokens in
+  let cond_expr, tokens = parse_expr tokens in
+  let tokens = expect RParen tokens in
+  let then_stmt, tokens = parse_stmt tokens in
+  let else_stmt, tokens =
+    match current_kind tokens with
+    | Else ->
+        let tokens = expect Else tokens in
+        parse_stmt tokens
+    | _ -> (EmptyStmt, tokens)
+  in
+
+  (IfStmt (cond_expr, then_stmt, else_stmt), tokens)
+
+and parse_for_stmt tokens =
+  let tokens = expect For tokens in
+  let tokens = expect LParen tokens in
+
+  let e1, tokens =
+    match current_kind tokens with
+    | Semicolon -> (EmptyExpr, tokens)
+    | _ -> parse_expr tokens
+  in
+  let tokens = expect Semicolon tokens in
+
+  let e2, tokens =
+    match current_kind tokens with
+    | Semicolon -> (EmptyExpr, tokens)
+    | _ -> parse_expr tokens
+  in
+  let tokens = expect Semicolon tokens in
+
+  let e3, tokens =
+    match current_kind tokens with
+    | RParen -> (EmptyExpr, tokens)
+    | _ -> parse_expr tokens
+  in
+  let tokens = expect RParen tokens in
+
+  let body_stmt, tokens = parse_stmt tokens in
+
+  (ForStmt (e1, e2, e3, body_stmt), tokens)
+
+and parse_while_stmt tokens =
+  let tokens = expect While tokens in
+  let tokens = expect LParen tokens in
+  let cond_expr, tokens = parse_expr tokens in
+  let tokens = expect RParen tokens in
+  let body_stmt, tokens = parse_stmt tokens in
+
+  (WhileStmt (cond_expr, body_stmt), tokens)
+
+and parse_break_stmt tokens =
+  let tokens = expect Break tokens in
+  let tokens = expect Semicolon tokens in
+
+  (BreakStmt, tokens)
+
+and parse_continue_stmt tokens =
+  let tokens = expect Continue tokens in
+  let tokens = expect Semicolon tokens in
+
+  (ContinueStmt, tokens)
+
+and parse_return_stmt tokens =
+  let tokens = expect Return tokens in
+  let expr, tokens =
+    match current_kind tokens with
+    | Semicolon -> (EmptyExpr, tokens)
+    | _ -> parse_expr tokens
+  in
+  let tokens = expect Semicolon tokens in
+
+  (ReturnStmt expr, tokens)
+
+and parse_expr_stmt tokens =
+  let expr, tokens =
+    match current_kind tokens with
+    | Semicolon -> (EmptyExpr, tokens)
+    | _ -> parse_expr tokens
+  in
+  let tokens = expect Semicolon tokens in
+
+  (ExprStmt expr, tokens)
+
+(* Declarations *)
+
+and parse_declarator tokens =
+  let id, tokens = parse_ident tokens in
+  match current_kind tokens with
+  | LBracket ->
+      let tokens = expect LBracket tokens in
+      let size, tokens =
+        match current_kind tokens with
+        | IntLit -> parse_int_lit tokens
+        | _ -> (EmptyExpr, tokens)
+      in
+      let tokens = expect RBracket tokens in
+      ((id, Some size), tokens)
+  | _ -> ((id, None), tokens)
+
+and parse_initialiser tokens =
+  match current_kind tokens with
+  | LCurly ->
+      let tokens = expect LCurly tokens in
+
+      let rec collect_exprs tokens =
+        let expr, tokens = parse_expr tokens in
+        match current_kind tokens with
+        | Comma ->
+            let tokens = expect Comma tokens in
+            let rest, tokens = collect_exprs tokens in
+            (expr :: rest, tokens)
+        | _ -> (expr :: [], tokens)
+      in
+
+      let exprs, tokens = collect_exprs tokens in
+      let tokens = expect RCurly tokens in
+      (ArrayInitExpr exprs, tokens)
+  | _ -> parse_expr tokens
+
+and parse_init_declarator tokens =
+  let (id, array_size), tokens = parse_declarator tokens in
+
+  let init_expr, tokens =
+    match current_kind tokens with
+    | Eq ->
+        let tokens = expect Eq tokens in
+        parse_initialiser tokens
+    | _ -> (EmptyExpr, tokens)
+  in
+
+  ((id, array_size, init_expr), tokens)
+
+and parse_init_declarator_list tokens =
+  let bundle, tokens = parse_init_declarator tokens in
+  match current_kind tokens with
+  | Comma ->
+      let tokens = expect Comma tokens in
+      let rest, tokens = parse_init_declarator_list tokens in
+      (bundle :: rest, tokens)
+  | _ -> (bundle :: [], tokens)
+
+and parse_local_decl_list tokens =
+  match current_kind tokens with
+  | Void | Int | Float | Boolean ->
+      let decls, tokens = parse_local_decl tokens in
+      let rest, tokens = parse_local_decl_list tokens in
+      (decls @ rest, tokens)
+  | _ -> ([], tokens)
+
+and parse_local_decl tokens =
+  let base_type, tokens = parse_type tokens in
+  let bundles, tokens = parse_init_declarator_list tokens in
+  let tokens = expect Semicolon tokens in
+
+  let decls =
+    List.map
+      (fun (id, array_size, init_expr) ->
+        let final_type =
+          match array_size with
+          | Some size -> ArrayType (base_type, size)
+          | None -> base_type
+        in
+        LocalVarDecl (final_type, id, init_expr))
+      bundles
+  in
+
+  (decls, tokens)
+
+let rec parse_global_decl tokens =
+  let base_type, tokens = parse_type tokens in
+  let id, tokens = parse_ident tokens in
+
+  match current_kind tokens with
+  | LParen ->
+      (* it is a global function declaration *)
+      let para_list, tokens = parse_para_list tokens in
+      let body, tokens = parse_compound_stmt tokens in
+      (FuncDecl (base_type, id, para_list, body) :: [], tokens)
+  | _ ->
+      (* it is a global variable declaration *)
+      let array_size, tokens =
+        match current_kind tokens with
+        | LBracket ->
+            let tokens = expect LBracket tokens in
+            let size, tokens =
+              match current_kind tokens with
+              | IntLit -> parse_int_lit tokens
+              | _ -> (EmptyExpr, tokens)
+            in
+            let tokens = expect RBracket tokens in
+            (Some size, tokens)
+        | _ -> (None, tokens)
+      in
+
+      let init_expr, tokens =
+        match current_kind tokens with
+        | Eq ->
+            let tokens = expect Eq tokens in
+            parse_initialiser tokens
+        | _ -> (EmptyExpr, tokens)
+      in
+
+      let first_bundle = (id, array_size, init_expr) in
+      let trailing_bundles, tokens =
+        match current_kind tokens with
+        | Comma ->
+            let tokens = expect Comma tokens in
+            parse_init_declarator_list tokens
+        | _ -> ([], tokens)
+      in
+      let tokens = expect Semicolon tokens in
+
+      let all_bundles = first_bundle :: trailing_bundles in
+      let decls =
+        List.map
+          (fun (id, array, init_expr) ->
+            let final_type =
+              match array with
+              | Some size -> ArrayType (base_type, size)
+              | None -> base_type
+            in
+            GlobalVarDecl (final_type, id, init_expr))
+          all_bundles
+      in
+
+      (decls, tokens)
+
+(* Program *)
+
+let rec parse_program tokens =
+  match current_kind tokens with
+  | EOF -> ([], tokens)
+  | Void | Int | Float | Boolean ->
+      let decls, tokens = parse_global_decl tokens in
+      let rest, tokens = parse_program tokens in
+      (decls @ rest, tokens)
+  | _ ->
+      parse_error
+        ("\"" ^ (current_token tokens).spelling ^ "\" is not a valid start")
+        tokens
