@@ -130,7 +130,7 @@ and parse_additive_expr tokens =
   let init, tokens = parse_multiplicative_expr tokens in
   let rec loop acc tokens =
     match current_kind tokens with
-    | Lt | Gt | LtEq | GtEq ->
+    | Plus | Minus ->
         let op, tokens = parse_operator tokens in
         let rhs, tokens = parse_multiplicative_expr tokens in
         let acc = BinaryExpr (acc, op, rhs) in
@@ -143,7 +143,7 @@ and parse_multiplicative_expr tokens =
   let init, tokens = parse_unary_expr tokens in
   let rec loop acc tokens =
     match current_kind tokens with
-    | Lt | Gt | LtEq | GtEq ->
+    | Mult | Div ->
         let op, tokens = parse_operator tokens in
         let rhs, tokens = parse_unary_expr tokens in
         let acc = BinaryExpr (acc, op, rhs) in
@@ -194,7 +194,6 @@ and parse_arg tokens =
   (Arg expr, tokens)
 
 and parse_arg_list tokens =
-  let tokens = expect LParen tokens in
   match current_kind tokens with
   | RParen -> ([], expect RParen tokens)
   | _ ->
@@ -238,7 +237,6 @@ let rec parse_proper_para_list tokens =
   | _ -> (para :: [], tokens)
 
 let parse_para_list tokens =
-  let tokens = expect LParen tokens in
   match current_kind tokens with
   | RParen -> ([], expect RParen tokens)
   | _ ->
@@ -455,6 +453,7 @@ let rec parse_global_decl tokens =
   match current_kind tokens with
   | LParen ->
       (* it is a global function declaration *)
+      let tokens = expect LParen tokens in
       let para_list, tokens = parse_para_list tokens in
       let body, tokens = parse_compound_stmt tokens in
       (FuncDecl (base_type, id, para_list, body) :: [], tokens)
