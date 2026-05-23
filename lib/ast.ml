@@ -1,11 +1,11 @@
 type program = Program of decl list
 
 and decl =
-  | FuncDecl of type_ * ident * para_decl list * stmt
-  | GlobalVarDecl of type_ * ident * expr
-  | LocalVarDecl of type_ * ident * expr
+  | FuncDecl of typ * ident * para_decl list * stmt
+  | GlobalVarDecl of typ * ident * expr
+  | LocalVarDecl of typ * ident * expr
 
-and para_decl = ParaDecl of type_ * ident
+and para_decl = ParaDecl of typ * ident
 
 and stmt =
   | CompoundStmt of decl list * stmt list
@@ -24,7 +24,7 @@ and expr =
   | AssignExpr of expr * expr
   | BinaryExpr of expr * operator * expr
   | UnaryExpr of operator * expr
-  | CallExpr of ident * arg list
+  | CallExpr of ident * expr list
   | IntExpr of string
   | BoolExpr of string
   | FloatExpr of string
@@ -33,15 +33,13 @@ and expr =
   | ArrayInitExpr of expr list
   | EmptyExpr
 
-and arg = Arg of expr
-
-and type_ =
+and typ =
   | IntType
   | FloatType
   | BoolType
   | StringType
   | VoidType
-  | ArrayType of type_ * expr
+  | ArrayType of typ * expr
   | ErrorType
 
 and var = SimpleVar of ident

@@ -13,3 +13,11 @@ let make line_start line_finish char_start char_finish =
 let to_string p =
   Printf.sprintf "%d(%d)..%d(%d)" p.line_start p.char_start p.line_finish
     p.char_finish
+
+let span start_pos end_pos =
+  {
+    line_start = start_pos.line_start;
+    line_finish = end_pos.line_finish;
+    char_start = start_pos.char_start;
+    char_finish = end_pos.char_finish;
+  }

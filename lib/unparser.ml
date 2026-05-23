@@ -57,8 +57,7 @@ and unparse_array_suffix = function
       "[" ^ (match size with EmptyExpr -> "" | _ -> unparse_expr size) ^ "]"
   | _ -> ""
 
-and unparse_arg_list args =
-  String.concat ", " (List.map (fun (Arg e) -> unparse_expr e) args)
+and unparse_arg_list args = String.concat ", " (List.map unparse_expr args)
 
 and unparse_expr = function
   | IntExpr e -> e

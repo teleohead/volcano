@@ -14,7 +14,7 @@ let current_token = function
 let advance = function _ :: tail -> tail | [] -> []
 
 let parse_error msg tokens =
-  Errors.report (Compile_error.make msg (current_token tokens).position);
+  Errors.report (Errors.SYNTAX_ERROR msg);
   failwith "parse error"
 
 let expect kind tokens =
@@ -189,9 +189,7 @@ and parse_primary_expr tokens =
 
 (* Arguments *)
 
-and parse_arg tokens =
-  let expr, tokens = parse_expr tokens in
-  (Arg expr, tokens)
+and parse_arg tokens = parse_expr tokens
 
 and parse_arg_list tokens =
   match current_kind tokens with
