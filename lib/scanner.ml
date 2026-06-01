@@ -140,12 +140,11 @@ let scan_string src s =
   let is_unterminated c = c = '\n' || c = '\r' || c = Source_file.eof in
   let rec loop curr acc =
     let next = peek src curr in
-    if is_unterminated next then begin
+    if is_unterminated next then (
       Errors.report_lexical
         (Source_position.make s.ln s.ln s.col s.col)
         "unterminated string";
-      (acc, curr)
-    end
+      (acc, curr))
     else if next = '"' then (acc, advance src curr)
     else
       let curr' = advance src curr in
