@@ -49,9 +49,9 @@ and skip_eol_comment src s =
 and skip_block_comment src start s =
   match s.ch with
   | c when c = Source_file.eof ->
-      Errors.report
-        ~pos:(Source_position.make start.ln s.ln start.col s.col)
-        (Errors.LEXICAL_ERROR "unterminated comment");
+      Errors.report_lexical
+        (Source_position.make start.ln s.ln start.col s.col)
+        "unterminated comment";
       s
   | '*' when peek src s = '/' -> advance src (advance src s)
   | _ -> skip_block_comment src start (advance src s)
@@ -141,9 +141,9 @@ let scan_string src s =
   let rec loop curr acc =
     let next = peek src curr in
     if is_unterminated next then begin
-      Errors.report ~token:acc
-        ~pos:(Source_position.make s.ln s.ln s.col s.col)
-        (Errors.LEXICAL_ERROR "unterminated string");
+      Errors.report_lexical
+        (Source_position.make s.ln s.ln s.col s.col)
+        "unterminated string";
       (acc, curr)
     end
     else if next = '"' then (acc, advance src curr)
@@ -165,10 +165,9 @@ let scan_string src s =
               | '\'' -> ("\'", advance src curr')
               | '\\' -> ("\\", advance src curr')
               | _ ->
-                  Errors.report
-                    ~pos:(Source_position.make s.ln curr'.ln s.col curr'.col)
-                    (Errors.LEXICAL_ERROR
-                       (Printf.sprintf "illegal escape '\\%c'" escaped));
+                  Errors.report_lexical
+                    (Source_position.make s.ln curr'.ln s.col curr'.col)
+                    (Printf.sprintf "illegal escape '\\%c'" escaped);
                   ("", advance src curr')
             in
             loop s_after (acc ^ translated)

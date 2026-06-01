@@ -14,7 +14,7 @@ let current_token = function
 let advance = function _ :: tail -> tail | [] -> []
 
 let parse_error msg tokens =
-  Errors.report (Errors.SYNTAX_ERROR msg);
+  Errors.report_syntax msg;
   failwith "parse error"
 
 let expect kind tokens =
